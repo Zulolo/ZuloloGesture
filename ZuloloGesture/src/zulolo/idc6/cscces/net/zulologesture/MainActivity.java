@@ -7,6 +7,7 @@ import org.achartengine.ChartFactory;
 import org.achartengine.GraphicalView;  
 import org.achartengine.chart.PointStyle;  
 import org.achartengine.chart.BarChart.Type;  
+import org.achartengine.model.CategorySeries;
 import org.achartengine.model.XYMultipleSeriesDataset;
 import org.achartengine.model.XYSeries;
 import org.achartengine.renderer.SimpleSeriesRenderer;  
@@ -31,6 +32,7 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity implements SensorEventListener {
 	
+	private static final int CHART_SERIES_MAX_LENGTH = 360;
 	private static final String TITLE_GESTURE_Z = "Gesture Z";
 	private static final String TITLE_GESTURE_Y = "Gesture Y";
 	private static final String TITLE_GESTURE_X = "Gesture X";
@@ -43,15 +45,19 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private static final String SAVE_STATE_GESTURE_RENDERER = "gestureRenderer";
 	private static final String SAVE_STATE_GESTURE_DATASET = "gestureDataset";
 	private static final int REFRESH_CHART_START_DELAY = 1000;
-	private static final int REFRESH_CHART_INTERVAL = 200;
+	private static final int REFRESH_CHART_INTERVAL = 100;
 	private static final int MSG_TIMER_CHART_REFRESH = 1;
 	
 	private XYMultipleSeriesDataset gestureDataset = new XYMultipleSeriesDataset();  
 	private XYMultipleSeriesRenderer gestureRenderer = new XYMultipleSeriesRenderer(); 
 	  
-	private XYSeries gestureXSeries = new XYSeries(TITLE_GESTURE_X);
-	private XYSeries gestureYSeries = new XYSeries(TITLE_GESTURE_Y);
-	private XYSeries gestureZSeries = new XYSeries(TITLE_GESTURE_Z);
+	private CategorySeries gestureXCategorySeries = new CategorySeries(TITLE_GESTURE_X);
+	private CategorySeries gestureYCategorySeries = new CategorySeries(TITLE_GESTURE_Y);
+	private CategorySeries gestureZCategorySeries = new CategorySeries(TITLE_GESTURE_Z);
+	
+	private XYSeries gestureX_XYSeriesSeries = new XYSeries(TITLE_GESTURE_X);
+	private XYSeries gestureY_XYSeriesSeries = new XYSeries(TITLE_GESTURE_Y);
+	private XYSeries gestureZ_XYSeriesSeries = new XYSeries(TITLE_GESTURE_Z);
 	
 	private XYSeriesRenderer gestureXSeriesRenderer = new XYSeriesRenderer();
 	private XYSeriesRenderer gestureYSeriesRenderer = new XYSeriesRenderer();
@@ -65,16 +71,46 @@ public class MainActivity extends Activity implements SensorEventListener {
     float[] fAccelerometerValues = new float[3];  
     float[] fMagneticFieldValues = new float[3];
     float[] fRotationMatrix = new float[9];  
+    float[] fOrientationValues = new float[3]; 
     
    
     Timer refreshChartTimer = new Timer(); 
     
 	@SuppressLint("HandlerLeak")
 	Handler myhandler = new Handler(){ 
-		public void handleMessage(Message msg) { 
+		public void handleMessage(Message msg) {	
 			switch (msg.what) { 
 			case MSG_TIMER_CHART_REFRESH: 
 				// Refresh all the chart
+				gestureXCategorySeries.add(fOrientationValues[0]);
+				gestureYCategorySeries.add(fOrientationValues[1]);
+				gestureZCategorySeries.add(fOrientationValues[2]);
+				while (gestureXCategorySeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+				{
+					gestureXCategorySeries.remove(0);
+				}
+				while (gestureYCategorySeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+				{
+					gestureYCategorySeries.remove(0);
+				}
+				while (gestureZCategorySeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+				{
+					gestureZCategorySeries.remove(0);
+				}
+				gestureX_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[0]);
+				gestureY_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[1]);
+				gestureZ_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[2]);
+//				gestureX_XYSeriesSeries = gestureXCategorySeries.toXYSeries();
+//				gestureY_XYSeriesSeries = gestureYCategorySeries.toXYSeries();
+//				gestureZ_XYSeriesSeries = gestureZCategorySeries.toXYSeries();
+//				gestureDataset.clear();
+//				gestureDataset.addSeries(gestureX_XYSeriesSeries);
+//				gestureDataset.addSeries(gestureY_XYSeriesSeries);
+//				gestureDataset.addSeries(gestureZ_XYSeriesSeries);
+				if (gestureChartView != null)
+				{
+					gestureChartView.repaint();
+				}
 			//setTitle("hear me?"); 
 			break; 
 			} 
@@ -102,9 +138,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 		tvMagRawData = (TextView)findViewById(R.id.textViewMagRawData);
 		
 		// Chart
-		gestureDataset.addSeries(gestureXSeries);
-		gestureDataset.addSeries(gestureYSeries);
-		gestureDataset.addSeries(gestureZSeries);
+		gestureDataset.addSeries(gestureX_XYSeriesSeries);
+		gestureDataset.addSeries(gestureY_XYSeriesSeries);
+		gestureDataset.addSeries(gestureZ_XYSeriesSeries);
 
 		FillOutsideLine myFillOutsideLine = new FillOutsideLine(FillOutsideLine.Type.NONE);
 		gestureXSeriesRenderer.setColor(Color.RED);	
@@ -125,9 +161,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 		gestureRenderer.addSeriesRenderer(gestureXSeriesRenderer);
 		gestureRenderer.addSeriesRenderer(gestureYSeriesRenderer);
 		gestureRenderer.addSeriesRenderer(gestureZSeriesRenderer);
-		gestureRenderer.setYAxisMin(0d); 
-		gestureRenderer.setYAxisMax(120d); 
-		gestureRenderer.setXAxisMax(24d);
+		gestureRenderer.setYAxisMin(-180d); 
+		gestureRenderer.setYAxisMax(180d); 
+		gestureRenderer.setXAxisMin(0d);
+		gestureRenderer.setXAxisMax(360d);
 		gestureRenderer.setShowGrid(true); 
 		gestureRenderer.setXLabels(24); 
 		gestureRenderer.setChartTitle("Orientation");
@@ -222,13 +259,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (SensorManager.getRotationMatrix(tempRotationMatrix, null, fAccelerometerValues, fMagneticFieldValues))
         {
             SensorManager.getOrientation(tempRotationMatrix, fOrientationResults);  
-    		
+            fOrientationValues[0] = (float)Math.toDegrees(fOrientationResults[0]);
+            fOrientationValues[1] = (float)Math.toDegrees(fOrientationResults[1]);
+            fOrientationValues[2] = (float)Math.toDegrees(fOrientationResults[2]);
     		mySB.append("X:");
-    		mySB.append((float)Math.toDegrees(fOrientationResults[0]) + "\n");
+    		mySB.append(fOrientationValues[0] + "\n");
     		mySB.append("Y:");
-    		mySB.append((float)Math.toDegrees(fOrientationResults[1]) + "\n");		
+    		mySB.append(fOrientationValues[1] + "\n");		
     		mySB.append("Z:");
-    		mySB.append((float)Math.toDegrees(fOrientationResults[2]));	
+    		mySB.append(fOrientationValues[2]);	
     		tvOrientation.setText(mySB.toString());
         }
 
@@ -239,9 +278,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 		super.onRestoreInstanceState(savedState);
 		gestureDataset = (XYMultipleSeriesDataset)savedState.getSerializable(SAVE_STATE_GESTURE_DATASET);
 		gestureRenderer = (XYMultipleSeriesRenderer)savedState.getSerializable(SAVE_STATE_GESTURE_RENDERER);
-		gestureXSeries = (XYSeries)savedState.getSerializable(SAVE_STATE_GESTURE_X_SERIES);
-		gestureYSeries = (XYSeries)savedState.getSerializable(SAVE_STATE_GESTURE_Y_SERIES);
-		gestureZSeries = (XYSeries)savedState.getSerializable(SAVE_STATE_GESTURE_Z_SERIES);
+		gestureXCategorySeries = (CategorySeries)savedState.getSerializable(SAVE_STATE_GESTURE_X_SERIES);
+		gestureYCategorySeries = (CategorySeries)savedState.getSerializable(SAVE_STATE_GESTURE_Y_SERIES);
+		gestureZCategorySeries = (CategorySeries)savedState.getSerializable(SAVE_STATE_GESTURE_Z_SERIES);
 		gestureXSeriesRenderer = (XYSeriesRenderer)savedState.getSerializable(SAVE_STATE_GESTURE_X_RENDERER);
 		gestureYSeriesRenderer = (XYSeriesRenderer)savedState.getSerializable(SAVE_STATE_GESTURE_Y_RENDERER);
 		gestureZSeriesRenderer = (XYSeriesRenderer)savedState.getSerializable(SAVE_STATE_GESTURE_Z_RENDERER);
@@ -252,9 +291,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 		super.onSaveInstanceState(outState);
 		outState.putSerializable(SAVE_STATE_GESTURE_DATASET, gestureDataset);
 		outState.putSerializable(SAVE_STATE_GESTURE_RENDERER, gestureRenderer);
-		outState.putSerializable(SAVE_STATE_GESTURE_X_SERIES, gestureXSeries);
-		outState.putSerializable(SAVE_STATE_GESTURE_Y_SERIES, gestureYSeries);
-		outState.putSerializable(SAVE_STATE_GESTURE_Z_SERIES, gestureZSeries);
+		outState.putSerializable(SAVE_STATE_GESTURE_X_SERIES, gestureXCategorySeries);
+		outState.putSerializable(SAVE_STATE_GESTURE_Y_SERIES, gestureYCategorySeries);
+		outState.putSerializable(SAVE_STATE_GESTURE_Z_SERIES, gestureZCategorySeries);
 		outState.putSerializable(SAVE_STATE_GESTURE_X_RENDERER, gestureXSeriesRenderer);
 		outState.putSerializable(SAVE_STATE_GESTURE_Y_RENDERER, gestureYSeriesRenderer);
 		outState.putSerializable(SAVE_STATE_GESTURE_Z_RENDERER, gestureZSeriesRenderer);
