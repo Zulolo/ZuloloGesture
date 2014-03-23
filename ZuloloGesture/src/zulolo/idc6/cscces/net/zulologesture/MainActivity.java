@@ -97,12 +97,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 				{
 					gestureZCategorySeries.remove(0);
 				}
-				gestureX_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[0]);
-				gestureY_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[1]);
-				gestureZ_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[2]);
-//				gestureX_XYSeriesSeries = gestureXCategorySeries.toXYSeries();
-//				gestureY_XYSeriesSeries = gestureYCategorySeries.toXYSeries();
-//				gestureZ_XYSeriesSeries = gestureZCategorySeries.toXYSeries();
+//				gestureX_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[0]);
+//				gestureY_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[1]);
+//				gestureZ_XYSeriesSeries.add(gestureXCategorySeries.getItemCount(),fOrientationValues[2]);
+				gestureX_XYSeriesSeries = gestureXCategorySeries.toXYSeries();
+				gestureY_XYSeriesSeries = gestureYCategorySeries.toXYSeries();
+				gestureZ_XYSeriesSeries = gestureZCategorySeries.toXYSeries();
 //				gestureDataset.clear();
 //				gestureDataset.addSeries(gestureX_XYSeriesSeries);
 //				gestureDataset.addSeries(gestureY_XYSeriesSeries);
