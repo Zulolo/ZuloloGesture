@@ -1,5 +1,9 @@
 package zulolo.idc6.cscces.net.zulologesture;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -35,19 +39,20 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity implements SensorEventListener {
 	
+	private static final String ZULOLO_ORIENTATION_RECORD_TXT = "ZuloloOrientationRecord.txt";
 	private static final int CHART_SERIES_MAX_LENGTH = 360;
 	private static final String TITLE_GESTURE_Z = "Gesture Z";
 	private static final String TITLE_GESTURE_Y = "Gesture Y";
 	private static final String TITLE_GESTURE_X = "Gesture X";
-	private static final String SAVE_STATE_GESTURE_Z_RENDERER = "gestureZRenderer";
-	private static final String SAVE_STATE_GESTURE_Y_RENDERER = "gestureYRenderer";
-	private static final String SAVE_STATE_GESTURE_X_RENDERER = "gestureXRenderer";
-	private static final String SAVE_STATE_GESTURE_Z_SERIES = "gestureZ_XYSeriesSeries";
-	private static final String SAVE_STATE_GESTURE_Y_SERIES = "gestureY_XYSeriesSeries";
-	private static final String SAVE_STATE_GESTURE_X_SERIES = "gestureX_XYSeriesSeries";
-	private static final String SAVE_STATE_GESTURE_RENDERER = "gestureRenderer";
-	private static final String SAVE_STATE_GESTURE_DATASET = "gestureDataset";
-	private static final String SAVE_STATE_I_GESTURE_TIME = "iGestureTime";
+//	private static final String SAVE_STATE_GESTURE_Z_RENDERER = "gestureZRenderer";
+//	private static final String SAVE_STATE_GESTURE_Y_RENDERER = "gestureYRenderer";
+//	private static final String SAVE_STATE_GESTURE_X_RENDERER = "gestureXRenderer";
+//	private static final String SAVE_STATE_GESTURE_Z_SERIES = "gestureZ_XYSeriesSeries";
+//	private static final String SAVE_STATE_GESTURE_Y_SERIES = "gestureY_XYSeriesSeries";
+//	private static final String SAVE_STATE_GESTURE_X_SERIES = "gestureX_XYSeriesSeries";
+//	private static final String SAVE_STATE_GESTURE_RENDERER = "gestureRenderer";
+//	private static final String SAVE_STATE_GESTURE_DATASET = "gestureDataset";
+//	private static final String SAVE_STATE_I_GESTURE_TIME = "iGestureTime";
 	private static final int REFRESH_CHART_START_DELAY = 1000;
 	private static final int REFRESH_CHART_INTERVAL = 100;
 	private static final int MSG_TIMER_CHART_REFRESH = 1;
@@ -64,6 +69,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private XYSeriesRenderer gestureYSeriesRenderer = new XYSeriesRenderer();
 	private XYSeriesRenderer gestureZSeriesRenderer = new XYSeriesRenderer();
 	private GraphicalView gestureChartView;
+	
+	private BufferedWriter myBufWriter;
 	
 	SensorManager mySensorManager;
 	TextView tvOrientation;
@@ -90,6 +97,18 @@ public class MainActivity extends Activity implements SensorEventListener {
 				gestureY_XYSeries.add(dShowTime, fOrientationValues[1]);
 				gestureZ_XYSeries.add(dShowTime, fOrientationValues[2]);
 
+				if (myBufWriter!= null)
+				{
+					try {
+						myBufWriter.write(dShowTime + "\t" + fOrientationValues[0] + 
+								"\t" + fOrientationValues[1] + 
+								"\t" + fOrientationValues[2]);
+						myBufWriter.newLine();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 				while (gestureX_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
 				{
 					gestureX_XYSeries.remove(0);
@@ -169,6 +188,17 @@ public class MainActivity extends Activity implements SensorEventListener {
 		gestureRenderer.setYLabelsAlign(Align.RIGHT);
 		gestureRenderer.setChartTitle("Orientation");
 		
+		try {
+			File myFile = new File(ZULOLO_ORIENTATION_RECORD_TXT);
+			if(myFile.exists())
+			{
+				myFile.delete();
+			}
+			myBufWriter = new BufferedWriter(new FileWriter(ZULOLO_ORIENTATION_RECORD_TXT));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		// Get System Service of sensors
 		mySensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 		refreshChartTimer.schedule(refreshChartTask, REFRESH_CHART_START_DELAY, REFRESH_CHART_INTERVAL); 
@@ -202,7 +232,16 @@ public class MainActivity extends Activity implements SensorEventListener {
 	@Override
 	protected void onStop()
 	{
-		mySensorManager.unregisterListener(this);	
+		mySensorManager.unregisterListener(this);
+		if (myBufWriter!= null)
+		{
+			try {
+				myBufWriter.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 		super.onResume();
 	}
 	
@@ -311,5 +350,4 @@ public class MainActivity extends Activity implements SensorEventListener {
 //		outState.putInt(SAVE_STATE_I_GESTURE_TIME, iGestureTime);
 		super.onSaveInstanceState(outState);
 	}
-
 }
