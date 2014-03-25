@@ -25,5 +25,5 @@
             </intent-filter>
         </activity>
     </application>
-	
+	<!-- https://github.com/Zulolo/ZuloloGesture.git -->
 </manifest>

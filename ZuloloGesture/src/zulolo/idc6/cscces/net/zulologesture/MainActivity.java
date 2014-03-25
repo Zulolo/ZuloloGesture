@@ -2,6 +2,8 @@ package zulolo.idc6.cscces.net.zulologesture;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Timer;
@@ -30,16 +32,19 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.view.Menu;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity implements SensorEventListener {
 	
 	private static final String ZULOLO_ORIENTATION_RECORD_TXT = "ZuloloOrientationRecord.txt";
+	private static final String ZULOLO_ORIENTATION_RECORD_DIR = "ZuloloOrientationRecord";
 	private static final int CHART_SERIES_MAX_LENGTH = 360;
 	private static final String TITLE_GESTURE_Z = "Gesture Z";
 	private static final String TITLE_GESTURE_Y = "Gesture Y";
@@ -70,7 +75,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private XYSeriesRenderer gestureZSeriesRenderer = new XYSeriesRenderer();
 	private GraphicalView gestureChartView;
 	
-	private BufferedWriter myBufWriter;
+	private FileOutputStream myFileOutputStream;
+	private String sSaveRecord; 
 	
 	SensorManager mySensorManager;
 	TextView tvOrientation;
@@ -97,17 +103,21 @@ public class MainActivity extends Activity implements SensorEventListener {
 				gestureY_XYSeries.add(dShowTime, fOrientationValues[1]);
 				gestureZ_XYSeries.add(dShowTime, fOrientationValues[2]);
 
-				if (myBufWriter!= null)
+				if (myFileOutputStream!= null)
 				{
-					try {
-						myBufWriter.write(dShowTime + "\t" + fOrientationValues[0] + 
-								"\t" + fOrientationValues[1] + 
-								"\t" + fOrientationValues[2]);
-						myBufWriter.newLine();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+					sSaveRecord = sSaveRecord + dShowTime + "\t" + fOrientationValues[0] + 
+							"\t" + fOrientationValues[1] + 
+							"\t" + fOrientationValues[2] + "\n";
+					if (iGestureTime%10 == 0){
+						try {
+							myFileOutputStream.write(sSaveRecord.getBytes());
+							sSaveRecord = "";
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}						
 					}
+
 				}
 				while (gestureX_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
 				{
@@ -188,22 +198,42 @@ public class MainActivity extends Activity implements SensorEventListener {
 		gestureRenderer.setYLabelsAlign(Align.RIGHT);
 		gestureRenderer.setChartTitle("Orientation");
 		
-		try {
-			File myFile = new File(ZULOLO_ORIENTATION_RECORD_TXT);
-			if(myFile.exists())
-			{
-				myFile.delete();
+		if(isExternalStorageWritable()){
+			File myFile = new File(Environment.getExternalStoragePublicDirectory(
+		            Environment.DIRECTORY_PICTURES), ZULOLO_ORIENTATION_RECORD_TXT);
+//				if(myFile.exists())
+//				{
+//					myFile.delete();	
+//				}
+//		    	myBufWriter = new BufferedWriter(new FileWriter(ZULOLO_ORIENTATION_RECORD_TXT));
+			try {
+				myFileOutputStream = new FileOutputStream(myFile);
+			} catch (FileNotFoundException e) {
+				myFileOutputStream = null;
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				Toast myToast = Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG);
+				myToast.show();	
 			}
-			myBufWriter = new BufferedWriter(new FileWriter(ZULOLO_ORIENTATION_RECORD_TXT));
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Toast myToast = Toast.makeText(this, "File generated", Toast.LENGTH_LONG);
+			myToast.show();	
+		}else{
+			Toast myToast = Toast.makeText(this, "External Storage Unreachable", Toast.LENGTH_LONG);
+			myToast.show();	
 		}
 		// Get System Service of sensors
 		mySensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 		refreshChartTimer.schedule(refreshChartTask, REFRESH_CHART_START_DELAY, REFRESH_CHART_INTERVAL); 
 	}
 
+	public boolean isExternalStorageWritable() {
+	    String state = Environment.getExternalStorageState();
+	    if (Environment.MEDIA_MOUNTED.equals(state)) {
+	        return true;
+	    }
+	    return false;
+	}
+	
 	@Override
 	protected void onResume()
 	{
@@ -233,15 +263,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 	protected void onStop()
 	{
 		mySensorManager.unregisterListener(this);
-		if (myBufWriter!= null)
-		{
-			try {
-				myBufWriter.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+//		if (myBufWriter!= null)
+//		{
+//			try {
+//				myBufWriter.close();
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		}
 		super.onResume();
 	}
 	
