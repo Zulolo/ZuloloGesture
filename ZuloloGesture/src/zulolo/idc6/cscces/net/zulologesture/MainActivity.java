@@ -1,10 +1,10 @@
 package zulolo.idc6.cscces.net.zulologesture;
 
-import java.io.BufferedWriter;
+//import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
+//import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -12,19 +12,19 @@ import java.util.TimerTask;
 import org.achartengine.ChartFactory;  
 import org.achartengine.GraphicalView;  
 import org.achartengine.chart.PointStyle;  
-import org.achartengine.chart.BarChart.Type;  
-import org.achartengine.model.CategorySeries;
+//import org.achartengine.chart.BarChart.Type;  
+//import org.achartengine.model.CategorySeries;
 import org.achartengine.model.XYMultipleSeriesDataset;
 import org.achartengine.model.XYSeries;
-import org.achartengine.renderer.SimpleSeriesRenderer;  
+//import org.achartengine.renderer.SimpleSeriesRenderer;  
 import org.achartengine.renderer.XYMultipleSeriesRenderer;  
 import org.achartengine.renderer.XYSeriesRenderer; 
 import org.achartengine.renderer.XYSeriesRenderer.FillOutsideLine;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.pm.ActivityInfo;
-import android.content.res.Configuration;
+//import android.content.pm.ActivityInfo;
+//import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Paint.Align;
 import android.hardware.Sensor;
@@ -44,7 +44,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity implements SensorEventListener {
 	
 	private static final String ZULOLO_ORIENTATION_RECORD_TXT = "ZuloloOrientationRecord.txt";
-	private static final String ZULOLO_ORIENTATION_RECORD_DIR = "ZuloloOrientationRecord";
+	//private static final String ZULOLO_ORIENTATION_RECORD_DIR = "ZuloloOrientationRecord";
 	private static final int CHART_SERIES_MAX_LENGTH = 360;
 	private static final String TITLE_GESTURE_Z = "Gesture Z";
 	private static final String TITLE_GESTURE_Y = "Gesture Y";
@@ -76,7 +76,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private GraphicalView gestureChartView;
 	
 	private FileOutputStream myFileOutputStream;
-	private String sSaveRecord; 
+	private String sSaveRecord = "Time\tOrientation X\tOrientation Y\tOrientation Z\t" +
+			"Accelerometer X\tAccelerometer Y\tAccelerometer Z\t" +
+			"MagneticField X\tMagneticField Y\tMagneticField Z\t" +
+			"RotationVector X\tRotationVector Y\tRotationVector Z\t" +
+			"Gravity X\tGravity Y\tGravity Z\t" +
+			"Gyroscope X\tGyroscope Y\tGyroscope Z\n"; 
 	
 	SensorManager mySensorManager;
 	TextView tvOrientation;
@@ -85,8 +90,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     float[] fAccelerometerValues = new float[3];  
     float[] fMagneticFieldValues = new float[3];
     float[] fRotationMatrix = new float[9];  
-    float[] fOrientationValues = new float[3]; 
-    
+    float[] fOrientationValues = new float[3];
+    float[] fRotationVectorValues = new float[3];
+    float[] fGravityValues = new float[3];
+    float[] fGyroscopeValues = new float[3];
    
     Timer refreshChartTimer = new Timer(); 
     
@@ -107,7 +114,23 @@ public class MainActivity extends Activity implements SensorEventListener {
 				{
 					sSaveRecord = sSaveRecord + dShowTime + "\t" + fOrientationValues[0] + 
 							"\t" + fOrientationValues[1] + 
-							"\t" + fOrientationValues[2] + "\n";
+							"\t" + fOrientationValues[2] + 
+							"\t" + fAccelerometerValues[0] + 
+							"\t" + fAccelerometerValues[1] + 
+							"\t" + fAccelerometerValues[2] + 
+							"\t" + fMagneticFieldValues[0] + 
+							"\t" + fMagneticFieldValues[1] + 
+							"\t" + fMagneticFieldValues[2] + 
+							"\t" + fRotationVectorValues[0] + 
+							"\t" + fRotationVectorValues[1] + 
+							"\t" + fRotationVectorValues[2] +
+							"\t" + fGravityValues[0] + 
+							"\t" + fGravityValues[1] + 
+							"\t" + fGravityValues[2] +
+							"\t" + fGyroscopeValues[0] + 
+							"\t" + fGyroscopeValues[1] + 
+							"\t" + fGyroscopeValues[2] +	
+							"\n";
 					if (iGestureTime%10 == 0){
 						try {
 							myFileOutputStream.write(sSaveRecord.getBytes());
@@ -242,9 +265,13 @@ public class MainActivity extends Activity implements SensorEventListener {
 				SensorManager.SENSOR_DELAY_GAME);	
 		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
 				SensorManager.SENSOR_DELAY_GAME);	
-		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE),
+		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
+				SensorManager.SENSOR_DELAY_GAME);
+//		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_ALL),
+//				SensorManager.SENSOR_DELAY_GAME);	
+		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY),
 				SensorManager.SENSOR_DELAY_GAME);	
-		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_LIGHT),
+		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
 				SensorManager.SENSOR_DELAY_GAME);	
 		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE),
 				SensorManager.SENSOR_DELAY_GAME);	
@@ -304,6 +331,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 			mySB.append("Z:");
 			mySB.append(fAccelerometerValues[2]);
 			tvAcceRawData.setText(mySB.toString());
+			calculateOrientation(); 
 			break;
 		case Sensor.TYPE_MAGNETIC_FIELD:
 			fMagneticFieldValues = arg0.values;
@@ -314,11 +342,21 @@ public class MainActivity extends Activity implements SensorEventListener {
 			mySB.append("Z:");
 			mySB.append(fMagneticFieldValues[2]);
 			tvMagRawData.setText(mySB.toString());
+			//calculateOrientation(); 
+			break;
+		case Sensor.TYPE_ROTATION_VECTOR:
+			fRotationVectorValues = arg0.values;
+			break;
+		case Sensor.TYPE_GRAVITY:
+			fGravityValues = arg0.values;
+			break;
+		case Sensor.TYPE_GYROSCOPE:
+			fGyroscopeValues = arg0.values;
 			break;
 			default:
 				break;
+			   
 		}
-	    calculateOrientation();  
 	}
 	
 	private  void calculateOrientation() {  
