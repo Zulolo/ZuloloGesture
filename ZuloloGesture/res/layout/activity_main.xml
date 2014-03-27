@@ -43,7 +43,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/hello_world" />
-    
+    <TextView
+        android:id="@+id/textViewAltitude"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/hello_world" />
 <!--     <TableLayout android:orientation="vertical" -->
 <!-- 		android:layout_width="fill_parent" -->
 <!-- 		android:layout_height="wrap_content"> -->

@@ -23,6 +23,7 @@ import org.achartengine.renderer.XYSeriesRenderer.FillOutsideLine;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 //import android.content.pm.ActivityInfo;
 //import android.content.res.Configuration;
 import android.graphics.Color;
@@ -31,6 +32,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -87,6 +91,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 	TextView tvOrientation;
 	TextView tvAcceRawData;
 	TextView tvMagRawData;
+	TextView tvAltitudeData;
     float[] fAccelerometerValues = new float[3];  
     float[] fMagneticFieldValues = new float[3];
     float[] fRotationMatrix = new float[9];  
@@ -96,6 +101,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     float[] fGyroscopeValues = new float[3];
    
     Timer refreshChartTimer = new Timer(); 
+	LocationManager myLocationManager;
+	LocationListener myLocationListener;
     
 	@SuppressLint("HandlerLeak")
 	Handler myhandler = new Handler(){ 
@@ -131,13 +138,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 							"\t" + fGyroscopeValues[1] + 
 							"\t" + fGyroscopeValues[2] +	
 							"\n";
-					if (iGestureTime%10 == 0){
+					if (iGestureTime%50 == 0){
 						try {
 							myFileOutputStream.write(sSaveRecord.getBytes());
 							sSaveRecord = "";
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
+							Toast myToast = Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT);
+							myToast.show();	
 						}						
 					}
 
@@ -185,6 +194,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 		tvOrientation = (TextView)findViewById(R.id.textViewOrientationData);
 		tvAcceRawData = (TextView)findViewById(R.id.textViewAcceRawData);
 		tvMagRawData = (TextView)findViewById(R.id.textViewMagRawData);
+		tvAltitudeData = (TextView)findViewById(R.id.textViewAltitude);
 		
 		// Chart
 		iGestureTime = 0;
@@ -247,8 +257,14 @@ public class MainActivity extends Activity implements SensorEventListener {
 		// Get System Service of sensors
 		mySensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 		refreshChartTimer.schedule(refreshChartTask, REFRESH_CHART_START_DELAY, REFRESH_CHART_INTERVAL); 
+		
 	}
 
+	private void makeUseOfNewLocation(Location myLocation)
+	{
+		tvAltitudeData.setText(String.valueOf(myLocation.getAltitude()));
+	}
+	
 	public boolean isExternalStorageWritable() {
 	    String state = Environment.getExternalStorageState();
 	    if (Environment.MEDIA_MOUNTED.equals(state)) {
@@ -284,12 +300,48 @@ public class MainActivity extends Activity implements SensorEventListener {
 			gestureChartView.setBackgroundResource(R.id.gestureView);
 			gestureChartView.repaint();
 		}
+		// Acquire a reference to the system Location Manager
+		myLocationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+
+		// Define a listener that responds to location updates
+		myLocationListener = new LocationListener() {
+			@Override
+		    public void onLocationChanged(Location location) {
+		      // Called when a new location is found by the network location provider.
+		      makeUseOfNewLocation(location);
+		    }
+
+		    public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+		    public void onProviderEnabled(String provider) {}
+
+		    public void onProviderDisabled(String provider) {}
+
+		  };
+
+		// Register the listener with the Location Manager to receive location updates
+		myLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, myLocationListener);
+//		myLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, myLocationListener);
 	}
 
 	@Override
 	protected void onStop()
 	{
 		mySensorManager.unregisterListener(this);
+		myLocationManager.removeUpdates(myLocationListener);
+		if (myFileOutputStream != null){
+			try {
+				myFileOutputStream.flush();
+				myFileOutputStream.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				Toast myToast = Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG);
+				myToast.show();	
+			}			
+		}
+
+		
 //		if (myBufWriter!= null)
 //		{
 //			try {
