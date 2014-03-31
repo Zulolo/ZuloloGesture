@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 //import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -47,6 +48,8 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity implements SensorEventListener {
 	
+	private static final int MIN_WRITE_FILE_INTERVAL = 5000;
+	private static final double CHART_MAX_Y = 20d;
 	private static final String ZULOLO_ORIENTATION_RECORD_TXT = "ZuloloOrientationRecord.txt";
 	//private static final String ZULOLO_ORIENTATION_RECORD_DIR = "ZuloloOrientationRecord";
 	private static final int CHART_SERIES_MAX_LENGTH = 360;
@@ -69,7 +72,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 	private XYMultipleSeriesDataset gestureDataset = new XYMultipleSeriesDataset();  
 	private XYMultipleSeriesRenderer gestureRenderer = new XYMultipleSeriesRenderer(); 
 	
-	private int iGestureTime;
+//	private int iGestureTime;
 	private XYSeries gestureX_XYSeries = new XYSeries(TITLE_GESTURE_X);
 	private XYSeries gestureY_XYSeries = new XYSeries(TITLE_GESTURE_Y);
 	private XYSeries gestureZ_XYSeries = new XYSeries(TITLE_GESTURE_Z);
@@ -87,7 +90,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 			"Gravity X\tGravity Y\tGravity Z\t" +
 			"Gyroscope X\tGyroscope Y\tGyroscope Z\n"; 
 	
-	SensorManager mySensorManager;
+	private SensorManager mySensorManager;
 	TextView tvOrientation;
 	TextView tvAcceRawData;
 	TextView tvMagRawData;
@@ -103,72 +106,143 @@ public class MainActivity extends Activity implements SensorEventListener {
     Timer refreshChartTimer = new Timer(); 
 	LocationManager myLocationManager;
 	LocationListener myLocationListener;
+	private static long lLastWriteFileTime = 0;
     
+	private long changeNanoSecondToMiniSecond(long lNanoSecond)
+	{
+		return lNanoSecond/1000000;
+	}
+	
+	private void addNewSensorValueToChart(SensorEvent arg0)
+	{
+		long lMiniSecond = changeNanoSecondToMiniSecond(arg0.timestamp);
+		double fSecond = ((double)lMiniSecond)/1000;
+				
+		gestureX_XYSeries.add(fSecond, arg0.values[0]);
+		gestureY_XYSeries.add(fSecond, arg0.values[1]);
+		gestureZ_XYSeries.add(fSecond, arg0.values[2]);
+
+		while (gestureX_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+		{
+			gestureX_XYSeries.remove(0);
+		}
+		while (gestureY_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+		{
+			gestureY_XYSeries.remove(0);
+		}
+		while (gestureZ_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+		{
+			gestureZ_XYSeries.remove(0);
+		}
+		if (gestureChartView != null)
+		{
+			gestureRenderer.setXAxisMin(gestureX_XYSeries.getMinX());
+			gestureRenderer.setXAxisMax(gestureX_XYSeries.getMaxX());
+			gestureChartView.repaint();
+		}
+
+		if (myFileOutputStream!= null)
+		{
+			sSaveRecord = sSaveRecord + arg0.timestamp/1000 + "\t" + fOrientationValues[0] + 
+					"\t" + fOrientationValues[1] + 
+					"\t" + fOrientationValues[2] + 
+					"\t" + fAccelerometerValues[0] + 
+					"\t" + fAccelerometerValues[1] + 
+					"\t" + fAccelerometerValues[2] + 
+					"\t" + fMagneticFieldValues[0] + 
+					"\t" + fMagneticFieldValues[1] + 
+					"\t" + fMagneticFieldValues[2] + 
+					"\t" + fRotationVectorValues[0] + 
+					"\t" + fRotationVectorValues[1] + 
+					"\t" + fRotationVectorValues[2] +
+					"\t" + fGravityValues[0] + 
+					"\t" + fGravityValues[1] + 
+					"\t" + fGravityValues[2] +
+					"\t" + fGyroscopeValues[0] + 
+					"\t" + fGyroscopeValues[1] + 
+					"\t" + fGyroscopeValues[2] +	
+					"\n";
+			if ((lMiniSecond - lLastWriteFileTime) > MIN_WRITE_FILE_INTERVAL){
+				try {
+					myFileOutputStream.write(sSaveRecord.getBytes());
+					sSaveRecord = "";
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					Toast myToast = Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT);
+					myToast.show();	
+				}			
+				lLastWriteFileTime = lMiniSecond;
+			}
+		
+		}
+	}
+	
 	@SuppressLint("HandlerLeak")
 	Handler myhandler = new Handler(){ 
 		public void handleMessage(Message msg) {	
-			double dShowTime;
+			//double dShowTime;
 			switch (msg.what) { 
 			case MSG_TIMER_CHART_REFRESH: 
 				// Refresh all the chart
-				iGestureTime++;
-				dShowTime = ((double)iGestureTime * REFRESH_CHART_INTERVAL) / 1000;
-				gestureX_XYSeries.add(dShowTime, fOrientationValues[0]);
-				gestureY_XYSeries.add(dShowTime, fOrientationValues[1]);
-				gestureZ_XYSeries.add(dShowTime, fOrientationValues[2]);
-
-				if (myFileOutputStream!= null)
-				{
-					sSaveRecord = sSaveRecord + dShowTime + "\t" + fOrientationValues[0] + 
-							"\t" + fOrientationValues[1] + 
-							"\t" + fOrientationValues[2] + 
-							"\t" + fAccelerometerValues[0] + 
-							"\t" + fAccelerometerValues[1] + 
-							"\t" + fAccelerometerValues[2] + 
-							"\t" + fMagneticFieldValues[0] + 
-							"\t" + fMagneticFieldValues[1] + 
-							"\t" + fMagneticFieldValues[2] + 
-							"\t" + fRotationVectorValues[0] + 
-							"\t" + fRotationVectorValues[1] + 
-							"\t" + fRotationVectorValues[2] +
-							"\t" + fGravityValues[0] + 
-							"\t" + fGravityValues[1] + 
-							"\t" + fGravityValues[2] +
-							"\t" + fGyroscopeValues[0] + 
-							"\t" + fGyroscopeValues[1] + 
-							"\t" + fGyroscopeValues[2] +	
-							"\n";
-					if (iGestureTime%50 == 0){
-						try {
-							myFileOutputStream.write(sSaveRecord.getBytes());
-							sSaveRecord = "";
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							Toast myToast = Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT);
-							myToast.show();	
-						}						
-					}
-
-				}
-				while (gestureX_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
-				{
-					gestureX_XYSeries.remove(0);
-				}
-				while (gestureY_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
-				{
-					gestureY_XYSeries.remove(0);
-				}
-				while (gestureZ_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
-				{
-					gestureZ_XYSeries.remove(0);
-				}
-				if (gestureChartView != null)
-				{
-					gestureRenderer.setXAxisMin(gestureX_XYSeries.getMinX());
-					gestureRenderer.setXAxisMax(gestureX_XYSeries.getMaxX());
-					gestureChartView.repaint();
-				}
+//				iGestureTime++;
+//				dShowTime = ((double)iGestureTime * REFRESH_CHART_INTERVAL) / 1000;
+//				gestureX_XYSeries.add(dShowTime, fAccelerometerValues[0]);
+//				gestureY_XYSeries.add(dShowTime, fAccelerometerValues[1]);
+//				gestureZ_XYSeries.add(dShowTime, fAccelerometerValues[2]);
+//
+//				if (myFileOutputStream!= null)
+//				{
+//					sSaveRecord = sSaveRecord + dShowTime + "\t" + fOrientationValues[0] + 
+//							"\t" + fOrientationValues[1] + 
+//							"\t" + fOrientationValues[2] + 
+//							"\t" + fAccelerometerValues[0] + 
+//							"\t" + fAccelerometerValues[1] + 
+//							"\t" + fAccelerometerValues[2] + 
+//							"\t" + fMagneticFieldValues[0] + 
+//							"\t" + fMagneticFieldValues[1] + 
+//							"\t" + fMagneticFieldValues[2] + 
+//							"\t" + fRotationVectorValues[0] + 
+//							"\t" + fRotationVectorValues[1] + 
+//							"\t" + fRotationVectorValues[2] +
+//							"\t" + fGravityValues[0] + 
+//							"\t" + fGravityValues[1] + 
+//							"\t" + fGravityValues[2] +
+//							"\t" + fGyroscopeValues[0] + 
+//							"\t" + fGyroscopeValues[1] + 
+//							"\t" + fGyroscopeValues[2] +	
+//							"\n";
+//					if (iGestureTime%50 == 0){
+//						try {
+//							myFileOutputStream.write(sSaveRecord.getBytes());
+//							sSaveRecord = "";
+//						} catch (IOException e) {
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//							Toast myToast = Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT);
+//							myToast.show();	
+//						}						
+//					}
+//
+//				}
+//				while (gestureX_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+//				{
+//					gestureX_XYSeries.remove(0);
+//				}
+//				while (gestureY_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+//				{
+//					gestureY_XYSeries.remove(0);
+//				}
+//				while (gestureZ_XYSeries.getItemCount() > CHART_SERIES_MAX_LENGTH)
+//				{
+//					gestureZ_XYSeries.remove(0);
+//				}
+//				if (gestureChartView != null)
+//				{
+//					gestureRenderer.setXAxisMin(gestureX_XYSeries.getMinX());
+//					gestureRenderer.setXAxisMax(gestureX_XYSeries.getMaxX());
+//					gestureChartView.repaint();
+//				}
 			//setTitle("hear me?"); 
 			break; 
 			} 
@@ -197,7 +271,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 		tvAltitudeData = (TextView)findViewById(R.id.textViewAltitude);
 		
 		// Chart
-		iGestureTime = 0;
 		gestureDataset.addSeries(gestureX_XYSeries);
 		gestureDataset.addSeries(gestureY_XYSeries);
 		gestureDataset.addSeries(gestureZ_XYSeries);
@@ -221,8 +294,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 		gestureRenderer.addSeriesRenderer(gestureXSeriesRenderer);
 		gestureRenderer.addSeriesRenderer(gestureYSeriesRenderer);
 		gestureRenderer.addSeriesRenderer(gestureZSeriesRenderer);
-		gestureRenderer.setYAxisMin(-5d); 
-		gestureRenderer.setYAxisMax(5d); 
+		gestureRenderer.setYAxisMin(-CHART_MAX_Y); 
+		gestureRenderer.setYAxisMax(CHART_MAX_Y); 
 		gestureRenderer.setXAxisMin(0d);
 		gestureRenderer.setXAxisMax(360d);
 		gestureRenderer.setShowGrid(true); 
@@ -231,33 +304,21 @@ public class MainActivity extends Activity implements SensorEventListener {
 		gestureRenderer.setYLabelsAlign(Align.RIGHT);
 		gestureRenderer.setChartTitle("Orientation");
 		
-		if(isExternalStorageWritable()){
-			File myFile = new File(Environment.getExternalStoragePublicDirectory(
-		            Environment.DIRECTORY_PICTURES), ZULOLO_ORIENTATION_RECORD_TXT);
-//				if(myFile.exists())
-//				{
-//					myFile.delete();	
-//				}
-//		    	myBufWriter = new BufferedWriter(new FileWriter(ZULOLO_ORIENTATION_RECORD_TXT));
-			try {
-				myFileOutputStream = new FileOutputStream(myFile);
-			} catch (FileNotFoundException e) {
-				myFileOutputStream = null;
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				Toast myToast = Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG);
-				myToast.show();	
-			}
-			Toast myToast = Toast.makeText(this, "File generated", Toast.LENGTH_LONG);
-			myToast.show();	
-		}else{
-			Toast myToast = Toast.makeText(this, "External Storage Unreachable", Toast.LENGTH_LONG);
-			myToast.show();	
-		}
+		myFileOutputStream = getMyFileOutputStream(ZULOLO_ORIENTATION_RECORD_TXT);
+		
 		// Get System Service of sensors
 		mySensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
-		refreshChartTimer.schedule(refreshChartTask, REFRESH_CHART_START_DELAY, REFRESH_CHART_INTERVAL); 
-		
+		List<Sensor> deviceSensors = mySensorManager.getSensorList(Sensor.TYPE_ALL);
+		String sSensorList = "";
+		for (Sensor mySensor:deviceSensors) {
+			sSensorList += (mySensor.getName() + "\n");
+		}
+		if (sSensorList.endsWith("\n")){
+			sSensorList.substring(0, sSensorList.length() - 2);
+		}
+		Toast myToast = Toast.makeText(this, sSensorList, Toast.LENGTH_LONG);
+		myToast.show();	
+			
 	}
 
 	private void makeUseOfNewLocation(Location myLocation)
@@ -273,15 +334,45 @@ public class MainActivity extends Activity implements SensorEventListener {
 	    return false;
 	}
 	
+	private FileOutputStream getMyFileOutputStream(String sFileName)
+	{
+		FileOutputStream mFileOutputStream;
+		if(isExternalStorageWritable()){
+			File myFile = new File(Environment.getExternalStoragePublicDirectory(
+		            Environment.DIRECTORY_PICTURES), sFileName);
+//				if(myFile.exists())
+//				{
+//					myFile.delete();	
+//				}
+//		    	myBufWriter = new BufferedWriter(new FileWriter(ZULOLO_ORIENTATION_RECORD_TXT));
+			try {
+				mFileOutputStream = new FileOutputStream(myFile);
+				return mFileOutputStream;
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				Toast myToast = Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG);
+				myToast.show();	
+				return null;
+			}
+		}else{
+			Toast myToast = Toast.makeText(this, "External Storage Unreachable", Toast.LENGTH_LONG);
+			myToast.show();	
+			return null;
+		}
+	}
+	
 	@Override
 	protected void onResume()
 	{
 		super.onResume();
+		myFileOutputStream = getMyFileOutputStream(ZULOLO_ORIENTATION_RECORD_TXT);
+
 		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
 				SensorManager.SENSOR_DELAY_GAME);	
 		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
 				SensorManager.SENSOR_DELAY_GAME);	
-		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
+		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR),
 				SensorManager.SENSOR_DELAY_GAME);
 //		mySensorManager.registerListener(this, mySensorManager.getDefaultSensor(Sensor.TYPE_ALL),
 //				SensorManager.SENSOR_DELAY_GAME);	
@@ -322,17 +413,20 @@ public class MainActivity extends Activity implements SensorEventListener {
 		// Register the listener with the Location Manager to receive location updates
 		myLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, myLocationListener);
 //		myLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, myLocationListener);
+		refreshChartTimer.schedule(refreshChartTask, REFRESH_CHART_START_DELAY, REFRESH_CHART_INTERVAL);
 	}
 
 	@Override
-	protected void onStop()
+	protected void onPause()
 	{
+		refreshChartTimer.cancel();
 		mySensorManager.unregisterListener(this);
 		myLocationManager.removeUpdates(myLocationListener);
 		if (myFileOutputStream != null){
 			try {
 				myFileOutputStream.flush();
 				myFileOutputStream.close();
+				myFileOutputStream = null;
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -340,8 +434,13 @@ public class MainActivity extends Activity implements SensorEventListener {
 				myToast.show();	
 			}			
 		}
+		super.onPause();
+	}
+	
+	@Override
+	protected void onStop()
+	{
 
-		
 //		if (myBufWriter!= null)
 //		{
 //			try {
@@ -351,7 +450,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 //				e.printStackTrace();
 //			}
 //		}
-		super.onResume();
+		super.onStop();
 	}
 	
 	@Override
@@ -383,6 +482,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 			mySB.append("Z:");
 			mySB.append(fAccelerometerValues[2]);
 			tvAcceRawData.setText(mySB.toString());
+			
 			calculateOrientation(); 
 			break;
 		case Sensor.TYPE_MAGNETIC_FIELD:
@@ -396,11 +496,12 @@ public class MainActivity extends Activity implements SensorEventListener {
 			tvMagRawData.setText(mySB.toString());
 			//calculateOrientation(); 
 			break;
-		case Sensor.TYPE_ROTATION_VECTOR:
+		case Sensor.TYPE_GAME_ROTATION_VECTOR:
 			fRotationVectorValues = arg0.values;
 			break;
 		case Sensor.TYPE_GRAVITY:
 			fGravityValues = arg0.values;
+			addNewSensorValueToChart(arg0);
 			break;
 		case Sensor.TYPE_GYROSCOPE:
 			fGyroscopeValues = arg0.values;
